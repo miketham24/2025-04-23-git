@@ -1,5 +1,6 @@
 ---
 title: "Tutorial 6: Refactoring R Code"
+format: html
 ---
 
 # Introduction
@@ -10,14 +11,8 @@ In this tutorial, you will refactor the code into separate scripts corresponding
 
 ```{r}
 #| echo: fenced
-library(tidyverse)
-library(palmerpenguins)
-library(tidymodels)
-
-data <- penguins
-
-# Initial cleaning: Remove missing values
-data <- data %>% drop_na()
+source("R/01_load_data.R")
+data <- load_and_clean_data()
 ```
 
 # Methods
@@ -25,19 +20,9 @@ data <- data %>% drop_na()
 In this section, we perform exploratory data analysis (EDA) and prepare the data for modeling.
 
 ```{r}
-# Summary statistics
-glimpse(data)
-summarise(data, mean_bill_length = mean(bill_length_mm), mean_bill_depth = mean(bill_depth_mm))
-
-# Visualizations
-ggplot(data, aes(x = species, y = bill_length_mm, fill = species)) +
-  geom_boxplot() +
-  theme_minimal()
-
-# Prepare data for modeling
-data <- data %>%
-  select(species, bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g) %>%
-  mutate(species = as.factor(species))
+#| echo: fenced
+source("R/02_eda.R")
+data <- perform_eda(data)
 ```
 
 # Model
@@ -45,24 +30,11 @@ data <- data %>%
 We will fit a classification model using `tidymodels` to predict the species of a penguin based on its physical characteristics.
 
 ```{r}
-# Split data
-set.seed(123)
-data_split <- initial_split(data, strata = species)
-train_data <- training(data_split)
-test_data <- testing(data_split)
-
-# Define model
-penguin_model <- nearest_neighbor(mode = "classification", neighbors = 5) %>%
-  set_engine("kknn")
-
-# Create workflow
-penguin_workflow <- workflow() %>%
-  add_model(penguin_model) %>%
-  add_formula(species ~ .)
-
-# Fit model
-penguin_fit <- penguin_workflow %>%
-  fit(data = train_data)
+#| echo: fenced
+source("R/03_train.R")
+model_results <- train_model(data)
+penguin_fit <- model_results$penguin_fit
+test_data <- model_results$test_data
 ```
 
 # Results
@@ -70,12 +42,9 @@ penguin_fit <- penguin_workflow %>%
 We evaluate the performance of the model using the test dataset.
 
 ```{r}
-# Predict on test data
-predictions <- predict(penguin_fit, test_data, type = "class") %>%
-  bind_cols(test_data)
-
-# Confusion matrix
-conf_mat <- conf_mat(predictions, truth = species, estimate = .pred_class)
+#| echo: fenced
+source("R/04_evaluate.R")
+conf_mat <- evaluate_model(penguin_fit, test_data)
 conf_mat
 ```
 
